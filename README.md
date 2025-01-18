@@ -9,8 +9,6 @@ A Laravel backend tool demonstrating AI prompt engineering expertise.
 - **OpenAI's GPT**: AI-powered language model for generating responses.
 - **Aylien API**: Sentiment analysis for evaluating response tone.
 
----
-
 
 ## **Project Setup**
 

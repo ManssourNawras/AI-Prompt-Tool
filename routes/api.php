@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\PromptLogController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -23,3 +24,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::post('/prompt-log', [PromptLogController::class, 'store']);
 Route::get('/prompt-log/most-used', [PromptLogController::class, 'mostUsedPrompts']);
 Route::get('/prompt-log', [PromptLogController::class, 'getLogs']);
+
+
+Route::prefix('admin')->group(function () {
+    Route::get('/metrics', [AdminDashboardController::class, 'getMetrics']);
+    Route::get('/suggestions', [AdminDashboardController::class, 'getSuggestions']);
+});
