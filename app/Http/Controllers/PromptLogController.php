@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\PromptLog;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Exception;
 
 class PromptLogController extends Controller
@@ -30,7 +31,7 @@ class PromptLogController extends Controller
             // Call OpenAI GPT API
             $response = $this->openAIService->getResponse($validated['prompt']);
             
-            print_r($response);
+            // print_r($response);
             $aiResponse = $response['choices'][0]['text'];
 
             $responseEvaluate = $this->openAIService->evaluate($validated['prompt'] , $aiResponse);
@@ -38,42 +39,61 @@ class PromptLogController extends Controller
             $validated['response'] = $aiResponse;
             $validated['responseEvaluation'] = $responseEvaluate;
             $validated['timestamp'] = now();
-    
+            
+            DB::beginTransaction();
             $log = PromptLog::create($validated);
-    
-            return response()->json(['message' => 'Prompt logged successfully', 'data' => $log], 201);
+            DB::commit();
+
+            return $this->success($log, 'Prompt logged successfully');
+            // return response()->json(['message' => 'Prompt logged successfully', 'data' => $log], 201);
         } catch (Exception $exception) {
+            DB::rollBack();
             Log::critical('Error: ' . $exception->getMessage());
             Log::critical('In file: ' . $exception->getFile() . ' on line: ' . $exception->getLine());
-            return response()->json(['message' => 'Error during Prompt logged...', 'error' => $exception->getMessage()], 400);
+            return $this->error(400, 'Error during Prompt logged... /n/r'.$exception->getMessage());
+            // return response()->json(['message' => 'Error during Prompt logged...', 'error' => $exception->getMessage()], 400);
         }
     }
     
     // Get the most used prompts
     public function mostUsedPrompts(Request $request)
     {
-        $result = PromptLog::raw(function ($collection) {
-            return $collection->aggregate([
-                ['$group' => ['_id' => '$prompt', 'count' => ['$sum' => 1]]],
-                ['$sort' => ['count' => -1]],
-                ['$limit' => 10],
-            ]);
-        });
-
-        $formattedResults = [];
-        foreach ($result as $item) {
-            $formattedResults[] = ['prompt' => $item['_id'], 'count' => $item['count']];
+        try {
+            $result = PromptLog::raw(function ($collection) {
+                return $collection->aggregate([
+                    ['$group' => ['_id' => '$prompt', 'count' => ['$sum' => 1]]],
+                    ['$sort' => ['count' => -1]],
+                    ['$limit' => 10],
+                ]);
+            });
+    
+            $formattedResults = [];
+            foreach ($result as $item) {
+                $formattedResults[] = ['prompt' => $item['_id'], 'count' => $item['count']];
+            }
+    
+            return $this->success($formattedResults, 'data fetched successfully');
+            // return response()->json(['data' => $formattedResults], 200);
+        } catch (Exception $exception) {
+            Log::critical('Error: ' . $exception->getMessage());
+            Log::critical('In file: ' . $exception->getFile() . ' on line: ' . $exception->getLine());
+            return $this->error(400, 'Error during fetching data... /n/r'.$exception->getMessage());
         }
-
-        return response()->json(['data' => $formattedResults], 200);
     }
 
     // Get all logs with evaluations
     public function getLogs(Request $request)
     {
-        $logs = PromptLog::whereNotNull('responseEvaluation')
+        try {
+            $logs = PromptLog::whereNotNull('responseEvaluation')
             ->paginate($request->input('per_page', 10));
 
-        return response()->json($logs, 200);
+            return $this->success($logs, 'data fetched successfully');
+            // return response()->json($logs, 200);
+        } catch (Exception $exception) {
+            Log::critical('Error: ' . $exception->getMessage());
+            Log::critical('In file: ' . $exception->getFile() . ' on line: ' . $exception->getLine());
+            return $this->error(400, 'Error during fetching data... /n/r'.$exception->getMessage());
+        }        
     }
 }
